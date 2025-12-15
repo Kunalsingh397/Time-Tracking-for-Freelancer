@@ -1,0 +1,91 @@
+name: MERN Stack CI/CD
+
+on:
+  push:
+    branches:
+      - main  # जब भी 'main' ब्रांच पर पुश होगा, यह चलेगा
+  pull_request:
+    branches:
+      - main
+      
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # 1. बिल्ड और टेस्ट (CI)
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      # 1.1. बैकएंड (Server) कॉन्फ़िगरेशन
+      - name: Setup Node.js for Backend
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+          
+      - name: Install Backend Dependencies
+        run: npm install
+        working-directory: ./backend
+        
+      - name: Run Backend Tests
+        # अपनी टेस्ट स्क्रिप्ट का नाम बदलें यदि 'test' नहीं है (उदाहरण: npm run jest)
+        run: npm test
+        working-directory: ./backend
+        
+      # 1.2. फ्रंटएंड (Client) कॉन्फ़िगरेशन
+      - name: Setup Node.js for Frontend
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'client/package-lock.json'
+      
+      - name: Install Frontend Dependencies
+        run: npm install
+        working-directory: ./client
+        
+      - name: Build Frontend (React)
+        # फ्रंटएंड बिल्ड
+        run: npm run build
+        working-directory: ./client
+      
+      # 1.3. बिल्ड आर्टिफैक्ट्स को डिप्लॉयमेंट के लिए सेव करें
+      # यह चरण डिप्लॉयमेंट जॉब के लिए बिल्ड किए गए कोड को सेव करता है।
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mern-app-dist
+          path: |
+            backend/
+            client/build/ 
+            # सुनिश्चित करें कि ये पाथ आपकी फ़ाइल संरचना से मेल खाते हैं
+
+  # 2. डिप्लॉयमेंट (CD)
+  deploy:
+    needs: build-and-test # यह जॉब तभी चलेगी जब 'build-and-test' सफल होगा
+    runs-on: ubuntu-latest
+    environment: production # आप अपनी रेपो में 'production' नाम का एनवायरनमेंट सेट कर सकते हैं
+    
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: mern-app-dist
+          path: .
+          
+      # AWS Elastic Beanstalk (EB) में डिप्लॉय करने का उदाहरण:
+      - name: Deploy to AWS Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v21
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }} # GitHub Secrets से
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # GitHub Secrets से
+          application_name: your-app-name-here
+          environment_name: your-environment-name-here
+          region: ap-south-1 # अपने AWS क्षेत्र को बदलें
+          version_label: ${{ github.sha }}
+          deployment_package: .
+          # यह कॉन्फ़िगरेशन मानता है कि आपका बैकएंड सर्वर रूट में है (या EB कॉन्फ़िगरेशन के अनुसार)
