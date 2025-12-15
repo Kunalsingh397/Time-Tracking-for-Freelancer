@@ -1,32 +1,22 @@
 # Freelancer Time Tracker — MERN
 
-This repository contains a MERN-stack Freelancer Time Tracking app scaffold (backend + frontend).
+A MERN stack based time tracking application for freelancers to log billable hours,
+manage multiple clients and projects, track earnings using hourly rates,
+and generate invoices. The app helps improve productivity and simplifies
+freelance work management.
 
-Quick start
+## Tech Stack
+- MongoDB (Atlas)
+- Express.js
+- React.js (Vite)
+- Node.js
+- Tailwind CSS
 
-1. Backend
+## Features
+- User authentication (Login / Register)
+- Client and project management
+- Time tracking for billable hours
+- Invoice generation
+- Earnings calculation based on hourly rates
 
-```bash
-cd backend
-npm install
-cp .env.example .env
-# set MONGO_URI and JWT_SECRET in .env
-npm run dev
-```
-
-2. Frontend
-
-```bash
-cd frontend
-npm install
-# optionally set VITE_API_URL in .env
-npm run dev
-```
-
-Notes
-- Backend runs on port specified in `.env` (default 5000). API base path: `/api`.
-- Frontend uses Vite; configure `VITE_API_URL` to point to backend (e.g. `http://localhost:5000/api`).
-
-Files created
-- Backend: models (User, Client, Project, TimeLog, Invoice), controllers, routes, auth middleware, invoice PDF util.
-- Frontend: React + Vite app with pages for Login/Register/Dashboard/Clients/Projects/TimeTracker/Invoices, Axios API wrapper, Tailwind CSS.
+## Project Structure
