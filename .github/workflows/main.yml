@@ -3,7 +3,7 @@ name: MERN Stack CI/CD
 on:
   push:
     branches:
-      - main  # This runs when pushed to the 'main' branch
+      - main
   pull_request:
     branches:
       - main
@@ -12,30 +12,28 @@ env:
   NODE_VERSION: '20'
 
 jobs:
-  # 1. Build (CI)
+  # 1. Build & Prepare (CI)
   build-and-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       
-      # 1.1. Backend (Server) Configuration
-      - name: Setup Node.js for Backend
+      # 1.1. Backend (Server) Setup
+      - name: Setup Node.js for Backend & Install Dependencies
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          # Caching lines removed to fix 'package-lock.json' error
           
       - name: Install Backend Dependencies
         run: npm install
         working-directory: ./backend
         
-      # 1.2. Frontend (Client) Configuration
-      - name: Setup Node.js for Frontend
+      # 1.2. Frontend (Client) Setup
+      - name: Setup Node.js for Frontend & Install Dependencies
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          # Caching lines removed to fix 'package-lock.json' error
       
       - name: Install Frontend Dependencies
         run: npm install
@@ -44,38 +42,46 @@ jobs:
       - name: Build Frontend (React)
         run: npm run build
         working-directory: ./client
+        
+      # --- DEPLOYMENT PREPARATION STEPS ---
       
-      # 1.3. Upload Artifacts for Deployment
-      - name: Upload Artifacts
+      - name: 1.3.1. Move Frontend Build into Backend (for EB deployment)
+        # Assuming your Express server serves static files from 'backend/client/build' or 'backend/build'
+        run: mv client/build backend/client-build
+        # Note: You need to configure your Express server (in backend/server.js) to serve static files from './client-build'.
+        
+      - name: 1.3.2. Create Deployment Package (ZIP)
+        # Create a ZIP file of the backend folder (which now contains the React build)
+        run: zip -r deploy_package.zip backend
+        
+      # 1.4. Upload Deployment Artifact
+      - name: Upload Deployment Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mern-app-dist
-          path: |
-            backend/
-            client/build/ 
-            # Ensure these paths match your file structure
-
+          name: deployment-package
+          path: deploy_package.zip
+          
   # 2. Deployment (CD)
   deploy:
-    needs: build-and-test # This job runs only if 'build-and-test' is successful
+    needs: build-and-test
     runs-on: ubuntu-latest
-    environment: production # Use a 'production' environment for secrets/protection
+    environment: production
     
     steps:
-      - name: Download Artifacts
+      - name: Download Deployment Package
         uses: actions/download-artifact@v4
         with:
-          name: mern-app-dist
+          name: deployment-package
           path: .
           
-      # Example Deployment to AWS Elastic Beanstalk (EB):
+      # AWS Elastic Beanstalk (EB) Deployment
       - name: Deploy to AWS Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v21
         with:
-          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }} # From GitHub Secrets
-          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # From GitHub Secrets
-          application_name: your-app-name-here
-          environment_name: your-environment-name-here
-          region: ap-south-1 # Change to your AWS region
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: your-app-name-here # <--- CHANGE THIS
+          environment_name: your-environment-name-here # <--- CHANGE THIS
+          region: ap-south-1 # <--- CHANGE THIS
           version_label: ${{ github.sha }}
-          deployment_package: .
+          deployment_package: deploy_package.zip # <-- Now deploying the ZIP file
